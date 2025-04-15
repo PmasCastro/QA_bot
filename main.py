@@ -13,13 +13,13 @@ openai = OpenAI()
 gpt_model = "gpt-4o-mini"
 ollama_model = "llama3.1"
 
-system_message = "You are a helpful assistant"
+system_message = "You are a helpful meteorologist bot"
 
 tools = [{
     "type": "function",
     "function": {
         "name": "get_weather",
-        "description": "Get current temperature for a given coordinates.",
+        "description": "Get current weather forecast for a given coordinates.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -53,9 +53,20 @@ def chat(message, history):
         response = handle_tool_call(message) #runs get_weather function
         messages.append(message)
         messages.append(response)
-        response = openai.chat.completions.create(model=gpt_model, messages=messages)
-    
-    return response.choices[0].message.content
+        stream = openai.chat.completions.create(model=gpt_model, messages=messages, stream=True)
+        
+    else:
+        # Just stream the original response
+        messages.append(response.choices[0].message)
+        stream = openai.chat.completions.create(
+            model=gpt_model,
+            messages=messages,
+            stream=True
+        )
+    result = ""
+    for chunk in stream:
+        result += chunk.choices[0].delta.content or ''
+        yield result
 
 def handle_tool_call(message):
     tool_call = message.tool_calls[0]
